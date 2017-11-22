@@ -90,7 +90,7 @@ abstract class AbstractCheckoutTask extends \TYPO3\Surf\Domain\Model\Task implem
 					" . (isset($options['fetchAllTags']) && $options['fetchAllTags'] === true ? '&& git fetch --tags' : '') . "
 					&& git reset $quietFlag --hard $sha1
 					&& git submodule $quietFlag init
-					&& for mod in `git submodule status | awk '{ print $2 }'`; do git config -f .git/config submodule.\${mod}.url `git config -f .gitmodules --get submodule.\${mod}.url` && echo synced \$mod; done
+					&& for mod in `git submodule foreach --quiet 'echo \$name'`; do git config -f .git/config submodule.\${mod}.url `git config -f .gitmodules --get submodule.\${mod}.url` && echo synced \$mod; done
 					&& git submodule $quietFlag sync
 					&& git submodule $quietFlag update --init $recursiveFlag
 					" . (isset($options['hardClean']) && $options['hardClean'] === true ? "&& git clean $quietFlag -d -x -ff" : '') . ";
