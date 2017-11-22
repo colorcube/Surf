@@ -35,6 +35,20 @@ class WebOpcacheResetExecuteTask extends \TYPO3\Surf\Domain\Model\Task
             throw new \TYPO3\Surf\Exception\InvalidConfigurationException('No "scriptIdentifier" option provided for WebOpcacheResetExecuteTask, make sure to execute "TYPO3\\Surf\\Task\\Php\\WebOpcacheResetCreateScriptTask" before this task or pass one explicitly', 1421932610);
         }
 
+        $retry = 0;
+        $retryWait = 1000;
+        $initialWait = 0;
+
+        if (isset($options['retry'])) {
+            $retry = min(10, (int)$options['retry']);
+        }
+        if (isset($options['retryWait'])) {
+            $retry = (int)$options['retryWait'];
+        }
+        if (isset($options['initialWait'])) {
+            $initialWait = (int)$options['initialWait'];
+        }
+
         $streamContext = null;
         if (isset($options['stream_context']) && is_array($options['stream_context'])) {
             $streamContext = stream_context_create($options['stream_context']);
@@ -43,9 +57,23 @@ class WebOpcacheResetExecuteTask extends \TYPO3\Surf\Domain\Model\Task
         $scriptIdentifier = $options['scriptIdentifier'];
         $scriptUrl = rtrim($options['baseUrl'], '/') . '/surf-opcache-reset-' . $scriptIdentifier . '.php';
 
-        $result = file_get_contents($scriptUrl, false, $streamContext);
-        if ($result !== 'success') {
+        if ($initialWait) {
+            $deployment->getLogger()->info('Wait "' . $initialWait . '" ms before executing PHP opcache reset script');
+            sleep($initialWait);
+        }
+
+        for ($retryCount = 0; $retryCount <= $retry; $retryCount++) {
+            $result = file_get_contents($scriptUrl, false, $streamContext);
+            if ($result === 'success') {
+                break;
+            }
+
             $deployment->getLogger()->warning('Executing PHP opcache reset script at "' . $scriptUrl . '" did not return expected result');
+
+            if ($retryCount < $retry) {
+                $deployment->getLogger()->warning('Will try again in "' . $retryWait . '" ms');
+                sleep($retryWait);
+            }
         }
     }
 }
